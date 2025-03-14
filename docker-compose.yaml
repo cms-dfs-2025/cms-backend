@@ -12,6 +12,7 @@ services:
       - database-network
     volumes:
       - ${PWD}/db-data/:/var/lib/postgresql/data/
+      - ${PWD}/db-init/:/docker-entrypoint-initdb.d/
 
 networks: 
   database-network:
