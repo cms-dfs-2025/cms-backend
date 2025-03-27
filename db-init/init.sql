@@ -1,6 +1,7 @@
-CREATE DATABASE cms WITH ENCODING='UTF8';
+\getenv dbname POSTGRES_DBNAME
+CREATE DATABASE :dbname WITH ENCODING='UTF8';
 
-\connect cms
+\connect :dbname
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
