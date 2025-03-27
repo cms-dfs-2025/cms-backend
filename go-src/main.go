@@ -3,7 +3,9 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 
 	_ "github.com/lib/pq"
@@ -37,9 +39,7 @@ func LogUsers(db *sql.DB) error {
 	return nil
 }
 
-func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-
+func ConnectDB() (*sql.DB, error) {
 	host := "localhost"
 	port := os.Getenv("POSTGRES_CONNECT_PORT")
 	user := os.Getenv("POSTGRES_USER")
@@ -53,18 +53,51 @@ func main() {
 	log.Print("Connecting to the db")
 
 	db, err := sql.Open("postgres", psqlInfo)
-	defer db.Close()
 
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return db, err
 	}
 
 	if err = db.Ping(); err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return db, err
 	}
 
-	err = LogUsers(db)
+	return db, nil
+}
+
+func CreateServer() *http.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		log.Print("Processing request on /users")
+
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = io.WriteString(w, "List of users!!")
+	})
+
+	port := os.Getenv("SERVER_PORT")
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%s", port),
+		Handler: mux,
+	}
+
+	log.Printf("Server created on port %s\n", port)
+
+	return server
+}
+
+func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
+	// database connection
+	db, err := ConnectDB()
+	defer db.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// http server creation
+	server := CreateServer()
+	log.Fatal(server.ListenAndServe())
 }
