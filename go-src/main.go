@@ -39,8 +39,8 @@ func GetUsers(db *sql.DB) ([]string, error) {
 }
 
 func ConnectDB() (*sql.DB, error) {
-	host := "localhost"
-	port := os.Getenv("POSTGRES_CONNECT_PORT")
+	host := "database"
+	port := "5432"
 	user := os.Getenv("POSTGRES_USER")
 	dbname := os.Getenv("POSTGRES_DBNAME")
 	password := os.Getenv("POSTGRES_PASSWORD")
@@ -48,6 +48,8 @@ func ConnectDB() (*sql.DB, error) {
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
+
+	log.Println(psqlInfo)
 
 	log.Print("Connecting to the db")
 
