@@ -7,36 +7,35 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	_ "github.com/lib/pq"
 )
 
-func LogUsers(db *sql.DB) error {
-	res, err := db.Query("SELECT handle, is_admin, auth_bits FROM users")
+func GetUsers(db *sql.DB) ([]string, error) {
+	res, err := db.Query("SELECT handle FROM users")
 	defer res.Close()
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	ret := []string{}
 	for res.Next() {
 		var handle string
-		var is_admin bool
-		var auth_bits int
 
-		if err = res.Scan(&handle, &is_admin, &auth_bits); err != nil {
-			return err
+		if err = res.Scan(&handle); err != nil {
+			return nil, err
 		}
 
-		log.Printf("handle=%s, is_admin=%t, auth_bits=%d",
-			handle, is_admin, auth_bits)
+		ret = append(ret, handle)
 	}
 
 	if err = res.Err(); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return ret, nil
 }
 
 func ConnectDB() (*sql.DB, error) {
@@ -67,14 +66,35 @@ func ConnectDB() (*sql.DB, error) {
 	return db, nil
 }
 
-func CreateServer() *http.Server {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
-		log.Print("Processing request on /users")
+type RequestHandler struct {
+	db *sql.DB
+}
 
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = io.WriteString(w, "List of users!!")
-	})
+func (handler RequestHandler) HandleGetUsers(w http.ResponseWriter, r *http.Request) {
+	log.Print("Processing /users")
+
+	users, err := GetUsers(handler.db)
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+	if err != nil {
+		log.Print("Internal server error")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	data := strings.Join(users, ",")
+
+	_, _ = io.WriteString(w, data)
+}
+
+func CreateServer(db *sql.DB) *http.Server {
+	requestHandler := RequestHandler{db: db}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/users", requestHandler.HandleGetUsers)
 
 	port := os.Getenv("SERVER_PORT")
 	server := &http.Server{
@@ -98,6 +118,6 @@ func main() {
 	}
 
 	// http server creation
-	server := CreateServer()
+	server := CreateServer(db)
 	log.Fatal(server.ListenAndServe())
 }
