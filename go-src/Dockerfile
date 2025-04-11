@@ -8,4 +8,6 @@ RUN go mod download
 COPY *.go .
 RUN go build -v -o /usr/local/bin/app .
 
+RUN mkdir -p $DOCUMENTS_PATH
+
 CMD ["app"]

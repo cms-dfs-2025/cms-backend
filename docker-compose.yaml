@@ -13,7 +13,7 @@ services:
     networks:
       - database-network
     volumes:
-      - ${PWD}/db-data/:/var/lib/postgresql/data/
+      - ${PWD}/volumes/db-data/:/var/lib/postgresql/data/
       - ${PWD}/db-init/:/docker-entrypoint-initdb.d/
 
   server:
@@ -31,8 +31,11 @@ services:
       POSTGRES_DBNAME: ${POSTGRES_DBNAME}
       POSTGRES_CONNECT_PORT: ${POSTGRES_CONNECT_PORT}
       SERVER_PORT: ${SERVER_PORT}
+      DOCUMENTS_PATH: ${DOCUMENTS_PATH}
     networks:
       - database-network
+    volumes:
+      - ${PWD}/volumes/documents:${DOCUMENTS_PATH}
 
 networks: 
   database-network:
