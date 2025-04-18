@@ -8,6 +8,6 @@ RUN go mod download
 COPY *.go .
 RUN go build -v -o /usr/local/bin/app .
 
-RUN mkdir -p $DOCUMENTS_PATH
+RUN mkdir -p /usr/var/lib/cms_server
 
 CMD ["app"]

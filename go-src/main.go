@@ -2,12 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	_ "github.com/lib/pq"
 )
@@ -39,8 +38,8 @@ func GetUsers(db *sql.DB) ([]string, error) {
 }
 
 func ConnectDB() (*sql.DB, error) {
-	host := "database"
-	port := "5432"
+	host := os.Getenv("POSTGRES_HOST")
+	port := os.Getenv("POSTGRES_CONNECT_PORT")
 	user := os.Getenv("POSTGRES_USER")
 	dbname := os.Getenv("POSTGRES_DBNAME")
 	password := os.Getenv("POSTGRES_PASSWORD")
@@ -49,9 +48,7 @@ func ConnectDB() (*sql.DB, error) {
 		"password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
-	log.Println(psqlInfo)
-
-	log.Print("Connecting to the db")
+	log.Printf("Connecting to the db on port %s", port)
 
 	db, err := sql.Open("postgres", psqlInfo)
 
@@ -72,31 +69,52 @@ type RequestHandler struct {
 	db *sql.DB
 }
 
-func (handler RequestHandler) HandleGetUsers(w http.ResponseWriter, r *http.Request) {
-	log.Print("Processing /users")
+type signupBody struct {
+	Handle   string `json:"handle"`
+	Password string `json:"password"`
+}
 
-	users, err := GetUsers(handler.db)
+func (handler RequestHandler) HandleSignup(w http.ResponseWriter, r *http.Request) {
+	log.Print("Processing /api/signup")
 
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	if r.Method != http.MethodPost {
+		log.Print("Method not allowed error")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var body signupBody
+	err := decoder.Decode(&body)
 
 	if err != nil {
-		log.Print("Internal server error")
+		log.Print("Body json decoder error")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
+	err = CreateUser(body.Handle, body.Password, false, handler.db)
+
+	if err != nil {
+		log.Print("User creation error")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("User with handle %s created", body.Handle)
 	w.WriteHeader(http.StatusOK)
-
-	data := strings.Join(users, ",")
-
-	_, _ = io.WriteString(w, data)
+	return
 }
 
 func CreateServer(db *sql.DB) *http.Server {
 	requestHandler := RequestHandler{db: db}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/users", requestHandler.HandleGetUsers)
+
+	// --- endpoints creation ---
+	mux.HandleFunc("/api/signup", requestHandler.HandleSignup)
+
+	// --------------------------
 
 	port := os.Getenv("SERVER_PORT")
 	server := &http.Server{

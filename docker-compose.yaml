@@ -29,13 +29,13 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_DBNAME: ${POSTGRES_DBNAME}
-      POSTGRES_CONNECT_PORT: ${POSTGRES_CONNECT_PORT}
+      POSTGRES_CONNECT_PORT: "5432"
+      POSTGRES_HOST: "database"
       SERVER_PORT: ${SERVER_PORT}
-      DOCUMENTS_PATH: ${DOCUMENTS_PATH}
     networks:
       - database-network
     volumes:
-      - ${PWD}/volumes/documents:${DOCUMENTS_PATH}
+      - ${PWD}/volumes/documents:/usr/var/lib/cms_server
 
 networks: 
   database-network:
