@@ -2,11 +2,14 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"slices"
 
 	_ "github.com/lib/pq"
 )
@@ -106,6 +109,87 @@ func (handler RequestHandler) HandleSignup(w http.ResponseWriter, r *http.Reques
 	return
 }
 
+var authIncorrectFormatError = fmt.Errorf("Incorrect authorization format")
+var ErrAuthFormat = errors.New("cms-server: incorrect auth format")
+
+func decodeBase64(encoded []byte) ([]byte, error) {
+	var decoded = make([]byte, base64.StdEncoding.DecodedLen(len(encoded)))
+	n, err := base64.StdEncoding.Decode(decoded, encoded)
+
+	if err != nil {
+		return decoded, err
+	}
+
+	decoded = decoded[:n]
+	return decoded, nil
+}
+
+// parses base64(base64(handle):password)
+// returns handle, password, error
+func parseBasicAuthorization(header_value string) (string, string, error) {
+	if len(header_value) < 6 {
+		return "", "", ErrAuthFormat
+	}
+
+	basic := header_value[:6]
+
+	if basic != "Basic " {
+		return "", "", ErrAuthFormat
+	}
+
+	passBytes, err := decodeBase64([]byte(header_value[6:]))
+
+	if err != nil {
+		return "", "", err
+	}
+
+	colon_idx := slices.Index(passBytes, ':')
+
+	if colon_idx == -1 {
+		return "", "", ErrAuthFormat
+	}
+
+	handleBytes, err := decodeBase64(passBytes[:colon_idx])
+
+	if err != nil {
+		return "", "", err
+	}
+
+	passwordBytes := passBytes[(colon_idx + 1):]
+
+	return string(handleBytes), string(passwordBytes), nil
+}
+
+func (handler RequestHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	log.Print("Processing /api/login")
+
+	if r.Method != http.MethodPost {
+		log.Print("Method not allowed error")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	auth := r.Header.Get("Authorization")
+	handle, password, err := parseBasicAuthorization(auth)
+
+	if err != nil {
+		w.Header().Set("Content-Type", "text/plain; charset=utf8")
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Basic authorization error")
+		return
+	}
+
+	err = AuthorizeUser(handle, password, handler.db)
+
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
 func CreateServer(db *sql.DB) *http.Server {
 	requestHandler := RequestHandler{db: db}
 
@@ -113,6 +197,7 @@ func CreateServer(db *sql.DB) *http.Server {
 
 	// --- endpoints creation ---
 	mux.HandleFunc("/api/signup", requestHandler.HandleSignup)
+	mux.HandleFunc("/api/login", requestHandler.HandleLogin)
 
 	// --------------------------
 
