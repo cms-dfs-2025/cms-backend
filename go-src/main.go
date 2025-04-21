@@ -126,24 +126,25 @@ func parseBasicAuthorization(header_value string) (string, string, error) {
 	return string(handleBytes), string(passwordBytes), nil
 }
 
-func (handler ServerContext) HandleLogin(c *gin.Context) {
+func (handler ServerContext) LoginMiddleware(c *gin.Context) {
 	auth := c.GetHeader("Authorization")
 	handle, password, err := parseBasicAuthorization(auth)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Basic auth error"})
+		c.AbortWithStatusJSON(http.StatusBadRequest,
+			gin.H{"message": "Basic auth error"})
 		return
 	}
-
-	log.Print(handle, password)
 
 	err = AuthorizeUser(handle, password, handler.db)
 
 	if err != nil {
-		c.Status(http.StatusUnauthorized)
+		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
+}
 
+func (handler ServerContext) HandleLogin(c *gin.Context) {
 	c.Status(http.StatusOK)
 	return
 }
@@ -155,7 +156,8 @@ func CreateServer(db *sql.DB) *gin.Engine {
 
 	// --- endpoints creation ---
 	router.POST("/api/signup", serverContext.HandleSignup)
-	router.POST("/api/login", serverContext.HandleLogin)
+	router.POST("/api/login", serverContext.LoginMiddleware,
+		serverContext.HandleLogin)
 
 	// --------------------------
 
