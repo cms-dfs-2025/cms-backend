@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -11,34 +10,9 @@ import (
 	"os"
 	"slices"
 
+	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
-
-func GetUsers(db *sql.DB) ([]string, error) {
-	res, err := db.Query("SELECT handle FROM users")
-	defer res.Close()
-
-	if err != nil {
-		return nil, err
-	}
-
-	ret := []string{}
-	for res.Next() {
-		var handle string
-
-		if err = res.Scan(&handle); err != nil {
-			return nil, err
-		}
-
-		ret = append(ret, handle)
-	}
-
-	if err = res.Err(); err != nil {
-		return nil, err
-	}
-
-	return ret, nil
-}
 
 func ConnectDB() (*sql.DB, error) {
 	host := os.Getenv("POSTGRES_HOST")
@@ -68,7 +42,9 @@ func ConnectDB() (*sql.DB, error) {
 	return db, nil
 }
 
-type RequestHandler struct {
+const SERVER_CONTEXT = "ServerContext"
+
+type ServerContext struct {
 	db *sql.DB
 }
 
@@ -77,35 +53,25 @@ type signupBody struct {
 	Password string `json:"password"`
 }
 
-func (handler RequestHandler) HandleSignup(w http.ResponseWriter, r *http.Request) {
-	log.Print("Processing /api/signup")
-
-	if r.Method != http.MethodPost {
-		log.Print("Method not allowed error")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	decoder := json.NewDecoder(r.Body)
+func (handler ServerContext) HandleSignup(c *gin.Context) {
 	var body signupBody
-	err := decoder.Decode(&body)
+	err := c.ShouldBindJSON(&body)
 
 	if err != nil {
-		log.Print("Body json decoder error")
-		w.WriteHeader(http.StatusInternalServerError)
+		c.JSON(http.StatusBadRequest,
+			gin.H{"message": "Unacceptable request body"})
 		return
 	}
 
 	err = CreateUser(body.Handle, body.Password, false, handler.db)
 
 	if err != nil {
-		log.Print("User creation error")
-		w.WriteHeader(http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError,
+			gin.H{"message": "Error in user creation"})
 		return
 	}
 
-	log.Printf("User with handle %s created", body.Handle)
-	w.WriteHeader(http.StatusOK)
+	c.Status(http.StatusOK)
 	return
 }
 
@@ -160,56 +126,40 @@ func parseBasicAuthorization(header_value string) (string, string, error) {
 	return string(handleBytes), string(passwordBytes), nil
 }
 
-func (handler RequestHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	log.Print("Processing /api/login")
-
-	if r.Method != http.MethodPost {
-		log.Print("Method not allowed error")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	auth := r.Header.Get("Authorization")
+func (handler ServerContext) HandleLogin(c *gin.Context) {
+	auth := c.GetHeader("Authorization")
 	handle, password, err := parseBasicAuthorization(auth)
 
 	if err != nil {
-		w.Header().Set("Content-Type", "text/plain; charset=utf8")
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Basic authorization error")
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Basic auth error"})
 		return
 	}
+
+	log.Print(handle, password)
 
 	err = AuthorizeUser(handle, password, handler.db)
 
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
+		c.Status(http.StatusUnauthorized)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	c.Status(http.StatusOK)
 	return
 }
 
-func CreateServer(db *sql.DB) *http.Server {
-	requestHandler := RequestHandler{db: db}
-
-	mux := http.NewServeMux()
+func CreateServer(db *sql.DB) *gin.Engine {
+	// gin.SetMode(gin.ReleaseMode)
+	router := gin.Default()
+	serverContext := &ServerContext{db: db}
 
 	// --- endpoints creation ---
-	mux.HandleFunc("/api/signup", requestHandler.HandleSignup)
-	mux.HandleFunc("/api/login", requestHandler.HandleLogin)
+	router.POST("/api/signup", serverContext.HandleSignup)
+	router.POST("/api/login", serverContext.HandleLogin)
 
 	// --------------------------
 
-	port := os.Getenv("SERVER_PORT")
-	server := &http.Server{
-		Addr:    fmt.Sprintf(":%s", port),
-		Handler: mux,
-	}
-
-	log.Printf("Server created on port %s\n", port)
-
-	return server
+	return router
 }
 
 func main() {
@@ -224,5 +174,11 @@ func main() {
 
 	// http server creation
 	server := CreateServer(db)
-	log.Fatal(server.ListenAndServe())
+
+	port := os.Getenv("SERVER_PORT")
+	address := fmt.Sprintf(":%s", port)
+
+	log.Printf("Creating a server on port %s\n", port)
+
+	log.Fatal(server.Run(address))
 }
