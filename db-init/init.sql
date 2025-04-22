@@ -29,10 +29,3 @@ CREATE TABLE tags_to_posts (
     tag_id INTEGER NOT NULL REFERENCES tags(id),
     post_id INTEGER NOT NULL REFERENCES posts(id)
 );
-
-CREATE TABLE action_log (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    ts TIMESTAMP NOT NULL,
-    action VARCHAR(255) NOT NULL
-);
