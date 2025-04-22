@@ -10,6 +10,7 @@ import (
 	"os"
 	"slices"
 
+	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
@@ -154,7 +155,11 @@ func CreateServer(db *sql.DB) *gin.Engine {
 	router := gin.Default()
 	serverContext := &ServerContext{db: db}
 
+	front_files := os.Getenv("FRONT_FILES")
+
 	// --- endpoints creation ---
+	router.Use(static.Serve("/", static.LocalFile(front_files, false)))
+
 	router.POST("/api/signup", serverContext.HandleSignup)
 	router.POST("/api/login", serverContext.LoginMiddleware,
 		serverContext.HandleLogin)

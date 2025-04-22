@@ -1,0 +1,21 @@
+FROM node:23.11.0-bookworm AS build
+
+WORKDIR /usr/src/app
+
+COPY front .
+RUN npm install
+RUN npm run build
+
+FROM golang:1.24.2-bookworm
+
+WORKDIR /usr/src/app
+
+COPY go-src/go.mod go-src/go.sum go-src/*.go .
+RUN go mod download
+RUN go build -v -o /usr/local/bin/app .
+
+COPY --from=build /usr/src/app/dist /usr/src/app/dist
+
+RUN mkdir -p /usr/var/lib/cms_server
+
+CMD ["app"]
