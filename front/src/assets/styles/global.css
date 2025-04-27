@@ -1,0 +1,76 @@
+@font-face {
+    font-family: "FavoritPro";
+    src: url('../fonts/FavoritPro-Book.otf') format('opentype');
+    font-weight: 350;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "FavoritPro";
+    src: url('../fonts/FavoritPro-Regular.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "FavoritPro";
+    src: url('../fonts/FavoritPro-Medium.otf') format('opentype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    --color-black: #000;
+    --color-white: #FFF;
+    --color-gray-dark: #222;
+    --color-yellow: #F2DD6B;
+    --color-red: #CB3D35;
+
+    --color-gray-dark-rgb: 34, 34, 34;
+    --opacity-low: 0.3;
+    --opacity-medium: 0.5;
+    --opacity-high: 1;
+
+    --letter-spacing-wide: -0.03em;
+    --letter-spacing-narrow: -0.04em;
+
+    --form-title-color: var(--color-black);
+    --form-placeholder-color: var(--color-gray-dark);
+    --form-button-color: var(--color-white);
+    --form-button-disabled-color: rgba(var(--color-gray-dark-rgb), var(--opacity-low));
+    --form-button-background-color: var(--color-gray-dark);
+    --form-button-border-color: var(--color-yellow);
+    --input-text-color: var(--color-gray-dark);
+    --input-warning-color: var(--color-red);
+    --input-placeholder-color: rgba(var(--color-gray-dark-rgb), var(--opacity-medium));
+    --input-label-color: rgba(var(--color-gray-dark-rgb), var(--opacity-medium));
+    --input-label-color-test: var(--color-gray-dark);
+    --input-label-opacity-test: var(--opacity-medium);
+    --input-label-opacity-hover-test: var(--opacity-high);
+
+    --input-label-color-hover: rgba(var(--color-gray-dark-rgb), var(--opacity-high));
+    --input-border-color: rgba(var(--color-gray-dark-rgb), var(--opacity-medium));
+    --input-border-color-hover: rgba(var(--color-gray-dark-rgb), var(--opacity-high));
+
+    --form-letter-spacing-title: var(--letter-spacing-narrow);
+    --form-letter-spacing-input: var(--letter-spacing-wide);
+    --form-letter-spacing-bottom: var(--letter-spacing-wide);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px white inset !important;
+  
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+input:-moz-autofill,
+input:-moz-autofill:hover,
+input:-moz-autofill:focus {
+  box-shadow: 0 0 0 1000px white inset !important;
+}

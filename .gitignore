@@ -1,2 +1,8 @@
 .env
 volumes
+.env
+# Игнорировать node_modules и сборку фронта
+front/node_modules/
+front/dist/
+front/.env
+front/.env.local
