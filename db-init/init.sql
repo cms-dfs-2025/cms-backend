@@ -13,10 +13,14 @@ CREATE TABLE users (
 CREATE TABLE posts (
     id SERIAL PRIMARY KEY,
     author_id INTEGER NOT NULL REFERENCES users(id),
+
     upload_timestamp TIMESTAMP NOT NULL,
     modified_timestamp TIMESTAMP NOT NULL,
-    release_timestamp TIMESTAMP NOT NULL,
+
+    draft BOOLEAN NOT NULL,
     archived BOOLEAN NOT NULL,
+
+    title VARCHAR(255) NOT NULL,
     source_ref VARCHAR(255) NOT NULL
 );
 

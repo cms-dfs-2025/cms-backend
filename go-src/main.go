@@ -192,10 +192,10 @@ func CreateServer(db *sql.DB) *gin.Engine {
 	// --- endpoints creation ---
 	router.Use(static.Serve("/", static.LocalFile(front_files, false)))
 
-	router.POST("/api/signup", serverContext.HandleSignup)
-	router.POST("/api/login", serverContext.LoginMiddleware,
+	router.POST("/api/auth/signup", serverContext.HandleSignup)
+	router.POST("/api/auth/login", serverContext.LoginMiddleware,
 		serverContext.HandleLogin)
-	router.POST("/api/change_pw", serverContext.LoginMiddleware,
+	router.POST("/api/auth/change_pw", serverContext.LoginMiddleware,
 		serverContext.HandleChangePw)
 
 	// --------------------------
