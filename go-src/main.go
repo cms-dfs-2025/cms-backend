@@ -50,8 +50,8 @@ type ServerContext struct {
 }
 
 type signupBody struct {
-	Handle   string `json:"handle"`
-	Password string `json:"password"`
+	Handle   string `json:"handle" binding:"required"`
+	Password string `json:"password" binding:"required"`
 }
 
 func (handler ServerContext) HandleSignup(c *gin.Context) {
@@ -59,16 +59,20 @@ func (handler ServerContext) HandleSignup(c *gin.Context) {
 	err := c.ShouldBindJSON(&body)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest,
-			gin.H{"message": "Unacceptable request body"})
+		c.Status(http.StatusBadRequest)
 		return
 	}
 
 	err = CreateUser(body.Handle, body.Password, false, handler.db)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError,
-			gin.H{"message": "Error in user creation"})
+		if err == ErrUserExists {
+			c.JSON(http.StatusInternalServerError,
+				gin.H{"message": "User already exists"})
+		} else {
+			c.JSON(http.StatusInternalServerError,
+				gin.H{"message": "Internal error"})
+		}
 		return
 	}
 
@@ -76,8 +80,7 @@ func (handler ServerContext) HandleSignup(c *gin.Context) {
 	return
 }
 
-var authIncorrectFormatError = fmt.Errorf("Incorrect authorization format")
-var ErrAuthFormat = errors.New("cms-server: incorrect auth format")
+var ErrAuthFormat = errors.New("cms: incorrect auth format")
 
 func decodeBase64(encoded []byte) ([]byte, error) {
 	var decoded = make([]byte, base64.StdEncoding.DecodedLen(len(encoded)))
@@ -132,20 +135,49 @@ func (handler ServerContext) LoginMiddleware(c *gin.Context) {
 	handle, password, err := parseBasicAuthorization(auth)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest,
+		c.AbortWithStatusJSON(http.StatusUnauthorized,
 			gin.H{"message": "Basic auth error"})
 		return
 	}
 
-	err = AuthorizeUser(handle, password, handler.db)
+	user, err := AuthorizeUser(handle, password, handler.db)
 
 	if err != nil {
-		c.AbortWithStatus(http.StatusUnauthorized)
+		c.AbortWithStatusJSON(http.StatusUnauthorized,
+			gin.H{"message": "Unauthorized"})
 		return
 	}
+
+	c.Set("user", user)
 }
 
 func (handler ServerContext) HandleLogin(c *gin.Context) {
+	c.Status(http.StatusOK)
+	return
+}
+
+type changePwBody struct {
+	Password string `json:"password" binding:"required"`
+}
+
+func (handler ServerContext) HandleChangePw(c *gin.Context) {
+	user := c.MustGet("user").(UserRow)
+
+	var body changePwBody
+	err := c.ShouldBindJSON(&body)
+
+	if err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	err = ChangeUserPassword(user.handle, body.Password, handler.db)
+
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
 	c.Status(http.StatusOK)
 	return
 }
@@ -163,6 +195,8 @@ func CreateServer(db *sql.DB) *gin.Engine {
 	router.POST("/api/signup", serverContext.HandleSignup)
 	router.POST("/api/login", serverContext.LoginMiddleware,
 		serverContext.HandleLogin)
+	router.POST("/api/change_pw", serverContext.LoginMiddleware,
+		serverContext.HandleChangePw)
 
 	// --------------------------
 
