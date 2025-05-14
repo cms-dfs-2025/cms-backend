@@ -36,3 +36,12 @@ func (handler ServerContext) HandleWorkUpload(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"id": postId})
 }
+
+func (handler ServerContext) HandleWorkGetAll(c *gin.Context) {
+	allPosts, err := GetAllPosts(handler.db)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"posts": allPosts})
+}

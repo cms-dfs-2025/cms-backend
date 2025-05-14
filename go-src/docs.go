@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"os"
 	"path"
 	"time"
@@ -133,4 +134,103 @@ func UploadPost(authorId int, title string, tags []string, draft bool,
 	}
 
 	return postId, nil
+}
+
+type PostData struct {
+	Id           int    `json:"id"`
+	AuthorHandle string `json:"author_handle"`
+
+	Title string   `json:"title"`
+	Tags  []string `json:"tags"`
+
+	UploadTimestamp   string `json:"upload_timestamp"`
+	ModifiedTimestamp string `json:"modified_timestamp"`
+
+	Draft    bool `json:"draft"`
+	Archived bool `json:"archived"`
+}
+
+func GetAllPosts(db *sql.DB) ([]PostData, error) {
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		tx.Rollback()
+		return []PostData{}, err
+	}
+
+	// --- get all the data ---
+
+	allPosts := make(map[int]PostData)
+
+	allPostsRows, err := tx.
+		Query("select posts.id, users.handle, posts.title, " +
+			"posts.upload_timestamp, posts.modified_timestamp, " +
+			"posts.draft, posts.archived from posts join users " +
+			"on posts.author_id = users.id;")
+	defer allPostsRows.Close()
+	if err != nil {
+		tx.Rollback()
+		return []PostData{}, err
+	}
+
+	for allPostsRows.Next() {
+		var postData PostData
+
+		var uploadTimestamp time.Time
+		var modifiedTimestamp time.Time
+
+		err = allPostsRows.
+			Scan(&postData.Id, &postData.AuthorHandle, &postData.Title,
+				&uploadTimestamp, &modifiedTimestamp,
+				&postData.Draft, &postData.Archived)
+
+		postData.UploadTimestamp = uploadTimestamp.Format(time.RFC3339)
+		postData.ModifiedTimestamp = modifiedTimestamp.Format(time.RFC3339)
+
+		if err != nil {
+			tx.Rollback()
+			return []PostData{}, err
+		}
+
+		allPosts[postData.Id] = postData
+	}
+
+	allTagsRows, err := tx.
+		Query("select tags_to_posts.post_id, tags.name from tags_to_posts " +
+			"join tags on tags_to_posts.tag_id=tags.id;")
+	defer allTagsRows.Close()
+	if err != nil {
+		tx.Rollback()
+		return []PostData{}, err
+	}
+
+	for allTagsRows.Next() {
+		var postId int
+		var tag string
+
+		err = allTagsRows.Scan(&postId, &tag)
+		if err != nil {
+			tx.Rollback()
+			return []PostData{}, err
+		}
+
+		postData, ok := allPosts[postId]
+		if !ok {
+			tx.Rollback()
+			return []PostData{}, errors.New("cms: id mismatch in posts")
+		}
+		postData.Tags = append(postData.Tags, tag)
+		allPosts[postId] = postData
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return []PostData{}, err
+	}
+
+	allPostsList := make([]PostData, 0, len(allPosts))
+	for _, value := range allPosts {
+		allPostsList = append(allPostsList, value)
+	}
+	return allPostsList, nil
 }

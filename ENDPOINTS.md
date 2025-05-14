@@ -11,6 +11,9 @@ type Message =  {
 }
 ```
 
+Точки во времени обозначены типом `Timestamp` и представлены строкой
+[RFC3339](https://www.rfc-editor.org/rfc/rfc3339).
+
 ## Авторизация
 
 `POST /api/auth/signup`. Создание пользователя. Запрос должен содержать информацию о
@@ -126,7 +129,8 @@ type DeleteBody = {
 сервер вернет статус 200.
 
 `GET /api/work/get_all`. Получение данных о всех статьях. Требует авторизацию.
-Пустой запрос. Сервер вернет статус 200 и JSON-объект
+Пустой запрос. Если во время формирования ответа произошла ошибка, сервер
+вернет статус 500. Сервер вернет статус 200 и JSON-объект
 ```typescript
 type GetAllReturn = {
     posts: PostData[]
@@ -134,8 +138,14 @@ type GetAllReturn = {
 
 type PostData = {
     id: number,
+    author_handle: string,
+
     title: string,
-    tags: string[]
+    tags: string[],
+
+    upload_timestamp: Timestamp,
+    modified_timestamp: Timestamp,
+
     draft: boolean,
     archived: boolean
 }
@@ -160,8 +170,9 @@ type GetBodyReturn = {
 
 ## Просмотр статей
 
-`GET /api/posts/get_all`. Получение данных о всех видимых статьях. Пустой запрос.
-Сервер вернет статус 200 и JSON-объект
+`GET /api/posts/get_all`. Получение данных о всех видимых статьях. Пустой
+запрос. Если во время формирования ответа произошла ошибка, сервер вернет
+статус 500. Иначе сервер вернет статус 200 и JSON-объект
 ```typescript
 type GetAllReturn = {
     posts: PostData[]
