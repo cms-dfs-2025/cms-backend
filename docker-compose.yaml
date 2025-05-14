@@ -33,10 +33,11 @@ services:
       POSTGRES_HOST: "database"
       SERVER_PORT: ${SERVER_PORT}
       FRONT_FILES: "/usr/src/app/dist"
+      DOCS_PATH: "/usr/var/lib/cms_server"
     networks:
       - database-network
     volumes:
-      - ${PWD}/volumes/documents:/usr/var/lib/cms_server
+      - ${PWD}/volumes/documents/:/usr/var/lib/cms_server/
 
 networks: 
   database-network:

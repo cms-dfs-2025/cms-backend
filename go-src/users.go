@@ -21,7 +21,7 @@ func truncatePassword(password string) []byte {
 	return passwordBytes
 }
 
-func CreatePasswordHash(password string) (string, error) {
+func createPasswordHash(password string) (string, error) {
 	passwordBytes := truncatePassword(password)
 	hashBytes, err := bcrypt.GenerateFromPassword(passwordBytes, hashCost)
 
@@ -32,7 +32,7 @@ func CreatePasswordHash(password string) (string, error) {
 	return string(hashBytes), nil
 }
 
-func CompareHashPassword(hash string, password string) error {
+func compareHashPassword(hash string, password string) error {
 	passwordBytes := truncatePassword(password)
 	hashBytes := []byte(hash)
 	return bcrypt.CompareHashAndPassword(hashBytes, passwordBytes)
@@ -42,7 +42,7 @@ var ErrUserExists = errors.New("cms: user exists")
 
 func CreateUser(handle string, password string, is_admin bool, db *sql.DB) error {
 	user_check := db.
-		QueryRow("SELECT FROM users WHERE handle=$1;", handle)
+		QueryRow("SELECT FROM users WHERE handle = $1;", handle)
 
 	err := user_check.Scan()
 
@@ -54,7 +54,7 @@ func CreateUser(handle string, password string, is_admin bool, db *sql.DB) error
 		}
 	}
 
-	hash, err := CreatePasswordHash(password)
+	hash, err := createPasswordHash(password)
 
 	if err != nil {
 		return err
@@ -82,7 +82,7 @@ func CreateUser(handle string, password string, is_admin bool, db *sql.DB) error
 }
 
 func ChangeUserPassword(handle string, new_password string, db *sql.DB) error {
-	hash, err := CreatePasswordHash(new_password)
+	hash, err := createPasswordHash(new_password)
 
 	if err != nil {
 		return err
@@ -109,23 +109,25 @@ func ChangeUserPassword(handle string, new_password string, db *sql.DB) error {
 }
 
 type UserRow struct {
-	handle    string
-	is_admin  bool
-	auth_bits string
+	Id       int
+	Handle   string
+	IsAdmin  bool
+	AuthBits string
 }
 
 func GetUser(handle string, db *sql.DB) (UserRow, error) {
 	result := db.QueryRow(
-		"SELECT handle, is_admin, auth_bits FROM users WHERE handle = $1;", handle)
+		"SELECT id, handle, is_admin, auth_bits FROM users WHERE handle = $1;", handle)
 
 	var user UserRow
 
-	err := result.Scan(&user.handle, &user.is_admin, &user.auth_bits)
+	err := result.Scan(&user.Id, &user.Handle, &user.IsAdmin, &user.AuthBits)
 
 	if err != nil {
-		user.handle = ""
-		user.is_admin = false
-		user.auth_bits = "+"
+		user.Id = -1
+		user.Handle = ""
+		user.IsAdmin = false
+		user.AuthBits = "+"
 	}
 
 	return user, err
@@ -138,6 +140,6 @@ func AuthorizeUser(handle string, password string, db *sql.DB) (UserRow, error) 
 		return user, err
 	}
 
-	err = CompareHashPassword(user.auth_bits, password)
+	err = compareHashPassword(user.AuthBits, password)
 	return user, err
 }
