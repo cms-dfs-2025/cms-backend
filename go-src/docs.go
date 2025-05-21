@@ -234,3 +234,26 @@ func GetAllPosts(db *sql.DB) ([]PostData, error) {
 	}
 	return allPostsList, nil
 }
+
+// data, is_auth_needed
+func GetPostBody(db *sql.DB, id int) (string, bool, error) {
+	var filename string
+	var draft bool
+	var archived bool
+	result := db.QueryRow(
+		"SELECT posts.source_ref, posts.draft, posts.archived "+
+			"FROM posts WHERE posts.id = $1;", id)
+	err := result.Scan(&filename, &draft, &archived)
+	if err != nil {
+		return "", true, err
+	}
+
+	data, err := readStoredFile(filename)
+	if err != nil {
+		return "", true, err
+	}
+
+	needs_auth := draft || archived
+
+	return data, needs_auth, nil
+}

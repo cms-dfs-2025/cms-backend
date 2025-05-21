@@ -44,7 +44,6 @@ type ServerContext struct {
 }
 
 func CreateServer(db *sql.DB) *gin.Engine {
-	// gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	serverContext := &ServerContext{db: db}
 

@@ -34,6 +34,7 @@ services:
       SERVER_PORT: ${SERVER_PORT}
       FRONT_FILES: "/usr/src/app/dist"
       DOCS_PATH: "/usr/var/lib/cms_server"
+      GIN_MODE: release
     networks:
       - database-network
     volumes:

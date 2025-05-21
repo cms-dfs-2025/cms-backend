@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 
@@ -45,8 +46,30 @@ func (handler ServerContext) HandleWorkDelete(c *gin.Context) {
 	c.Status(http.StatusNotImplemented)
 }
 
+type getBodyBody struct {
+	Id *int `json:"id" binding:"required"`
+}
+
 func (handler ServerContext) HandleWorkGetBody(c *gin.Context) {
-	c.Status(http.StatusNotImplemented)
+	var body getBodyBody
+	err := c.ShouldBindJSON(&body)
+	if err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	data, _, err := GetPostBody(handler.db, *body.Id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.Status(http.StatusNotFound)
+			return
+		} else {
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"body": data})
 }
 
 func (handler ServerContext) HandleWorkGetAll(c *gin.Context) {
