@@ -61,8 +61,17 @@ func CreateServer(db *sql.DB) *gin.Engine {
 
 	router.POST("/api/work/upload", serverContext.LoginMiddleware,
 		serverContext.HandleWorkUpload)
+	router.POST("/api/work/modidfy", serverContext.LoginMiddleware,
+		serverContext.HandleWorkModify)
+	router.POST("/api/work/delete", serverContext.LoginMiddleware,
+		serverContext.HandleWorkDelete)
 	router.GET("/api/work/get_all", serverContext.LoginMiddleware,
 		serverContext.HandleWorkGetAll)
+	router.GET("/api/work/get_body", serverContext.LoginMiddleware,
+		serverContext.HandleWorkGetBody)
+
+	router.GET("/api/posts/get_all", serverContext.HandlePostsGetAll)
+	router.GET("/api/posts/get_body", serverContext.HandlePostsGetBody)
 
 	// --------------------------
 

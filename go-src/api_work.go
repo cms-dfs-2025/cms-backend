@@ -37,6 +37,18 @@ func (handler ServerContext) HandleWorkUpload(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"id": postId})
 }
 
+func (handler ServerContext) HandleWorkModify(c *gin.Context) {
+	c.Status(http.StatusNotImplemented)
+}
+
+func (handler ServerContext) HandleWorkDelete(c *gin.Context) {
+	c.Status(http.StatusNotImplemented)
+}
+
+func (handler ServerContext) HandleWorkGetBody(c *gin.Context) {
+	c.Status(http.StatusNotImplemented)
+}
+
 func (handler ServerContext) HandleWorkGetAll(c *gin.Context) {
 	allPosts, err := GetAllPosts(handler.db)
 	if err != nil {
