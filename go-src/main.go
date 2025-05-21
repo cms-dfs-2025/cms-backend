@@ -60,7 +60,7 @@ func CreateServer(db *sql.DB) *gin.Engine {
 
 	router.POST("/api/work/upload", serverContext.LoginMiddleware,
 		serverContext.HandleWorkUpload)
-	router.POST("/api/work/modidfy", serverContext.LoginMiddleware,
+	router.POST("/api/work/modify", serverContext.LoginMiddleware,
 		serverContext.HandleWorkModify)
 	router.POST("/api/work/delete", serverContext.LoginMiddleware,
 		serverContext.HandleWorkDelete)

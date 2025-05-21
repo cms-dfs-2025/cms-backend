@@ -37,7 +37,7 @@ func (handler ServerContext) HandlePostsGetAll(c *gin.Context) {
 }
 
 func (handler ServerContext) HandlePostsGetBody(c *gin.Context) {
-	var body getBodyBody
+	var body idBody
 	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		c.Status(http.StatusBadRequest)

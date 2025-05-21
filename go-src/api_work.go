@@ -38,20 +38,71 @@ func (handler ServerContext) HandleWorkUpload(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"id": postId})
 }
 
+type modifyBody struct {
+	Id       *int      `json:"id" binding:"required"`
+	Title    *string   `json:"title"`
+	Tags     *[]string `json:"tags"`
+	Draft    *bool     `json:"draft"`
+	Archived *bool     `json:"archived"`
+	Body     *string   `json:"body"`
+}
+
 func (handler ServerContext) HandleWorkModify(c *gin.Context) {
-	c.Status(http.StatusNotImplemented)
+	var body modifyBody
+	err := c.ShouldBindJSON(&body)
+
+	if err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	err = ModifyPost(handler.db, *body.Id, body.Title, body.Draft, body.Archived,
+		body.Tags, body.Body)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusInternalServerError,
+				gin.H{"message": "Post with id not found"})
+			return
+		} else {
+			c.JSON(http.StatusInternalServerError,
+				gin.H{"message": "Internal error"})
+		}
+	}
+
+	c.Status(http.StatusOK)
 }
 
-func (handler ServerContext) HandleWorkDelete(c *gin.Context) {
-	c.Status(http.StatusNotImplemented)
-}
-
-type getBodyBody struct {
+type idBody struct {
 	Id *int `json:"id" binding:"required"`
 }
 
+func (handler ServerContext) HandleWorkDelete(c *gin.Context) {
+	var body idBody
+	err := c.ShouldBindJSON(&body)
+	if err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	err = DeletePost(handler.db, *body.Id)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusInternalServerError,
+				gin.H{"message": "Post with id not found"})
+			return
+		} else {
+			c.JSON(http.StatusInternalServerError,
+				gin.H{"message": "Internal error"})
+		}
+	}
+
+	c.Status(http.StatusOK)
+}
+
 func (handler ServerContext) HandleWorkGetBody(c *gin.Context) {
-	var body getBodyBody
+	var body idBody
 	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		c.Status(http.StatusBadRequest)

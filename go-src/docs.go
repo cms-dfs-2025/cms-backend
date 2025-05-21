@@ -16,7 +16,7 @@ func storedFilePath(filename string) string {
 	return path.Join(dir_path, filename)
 }
 
-func createStoredFile(filename string, data string) error {
+func writeStoredFile(filename string, data string) error {
 	filepath := storedFilePath(filename)
 	err := os.WriteFile(filepath, []byte(data), 0777)
 	return err
@@ -71,7 +71,7 @@ func UploadPost(authorId int, title string, tags []string, draft bool,
 	}
 	filename := fileId.String() + ".md"
 
-	err = createStoredFile(filename, body)
+	err = writeStoredFile(filename, body)
 	if err != nil {
 		return -1, err
 	}
@@ -235,7 +235,7 @@ func GetAllPosts(db *sql.DB) ([]PostData, error) {
 	return allPostsList, nil
 }
 
-// data, is_auth_needed
+// body, is_auth_needed
 func GetPostBody(db *sql.DB, id int) (string, bool, error) {
 	var filename string
 	var draft bool
@@ -248,12 +248,141 @@ func GetPostBody(db *sql.DB, id int) (string, bool, error) {
 		return "", true, err
 	}
 
-	data, err := readStoredFile(filename)
+	body, err := readStoredFile(filename)
 	if err != nil {
 		return "", true, err
 	}
 
 	needs_auth := draft || archived
 
-	return data, needs_auth, nil
+	return body, needs_auth, nil
+}
+
+func ModifyPost(db *sql.DB, id int, title *string, draft *bool, archived *bool,
+	tags *[]string, body *string) error {
+	if title == nil && draft == nil && archived == nil &&
+		tags == nil && body == nil {
+		return nil
+	}
+
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	var title_value string
+	var draft_value bool
+	var archived_value bool
+	var filename string
+	result := tx.QueryRow(
+		"SELECT posts.title, posts.draft, posts.archived, posts.source_ref "+
+			"FROM posts WHERE posts.id = $1;", id)
+	err = result.Scan(&title_value, &draft_value, &archived_value, &filename)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if title != nil {
+		title_value = *title
+	}
+
+	if draft != nil {
+		draft_value = *draft
+	}
+
+	if archived != nil {
+		archived_value = *archived
+	}
+
+	timestamp := time.Now()
+
+	_, err = tx.Exec("UPDATE posts SET modified_timestamp = $1, title = $2, "+
+		"draft = $3, archived = $4 WHERE id = $5;", timestamp, title_value,
+		draft_value, archived_value, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if body != nil {
+		err = writeStoredFile(filename, *body)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	if tags != nil {
+		tagIds, err := getTagIds(*tags, tx)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		// remove tags
+		_, err = tx.Exec("DELETE FROM tags_to_posts WHERE post_id = $1;", id)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		// add tags
+		for _, tagId := range tagIds {
+			_, err = tx.Exec("INSERT INTO tags_to_posts (tag_id, post_id) "+
+				"VALUES ($1, $2);", tagId, id)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
+}
+
+func DeletePost(db *sql.DB, id int) error {
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM tags_to_posts WHERE post_id = $1;", id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	result, err := tx.Exec("DELETE FROM posts WHERE id = $1;", id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if n == 0 {
+		tx.Rollback()
+		return sql.ErrNoRows
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
 }
