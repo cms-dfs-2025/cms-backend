@@ -1,0 +1,9 @@
+
+version: '3.8'
+services:
+  frontend:
+    #build:
+      #context: ../cms-front-25  # Путь к внешней папке фронтенда
+      #dockerfile: Dockerfile
+    volumes:
+      - ../cms-front-25:/app    # Для hot-reload

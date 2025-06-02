@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_DBNAME: ${POSTGRES_DBNAME}
     networks:
-      - database-network
+      - cms-network
     volumes:
       - ${PWD}/volumes/db-data/:/var/lib/postgresql/data/
       - ${PWD}/db-init/:/docker-entrypoint-initdb.d/
@@ -30,15 +30,27 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_DBNAME: ${POSTGRES_DBNAME}
       POSTGRES_CONNECT_PORT: "5432"
-      POSTGRES_HOST: "database"
+      POSTGRES_HOST: database
       SERVER_PORT: ${SERVER_PORT}
-      FRONT_FILES: "/usr/src/app/dist"
-      DOCS_PATH: "/usr/var/lib/cms_server"
     networks:
-      - database-network
+      - cms-network
     volumes:
       - ${PWD}/volumes/documents/:/usr/var/lib/cms_server/
 
-networks: 
-  database-network:
+  frontend:
+    build:
+      context: ../cms-front-25
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+    networks:
+      - cms-network
+    volumes:
+      - ../cms-front-25:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+
+networks:
+  cms-network:
     driver: bridge
