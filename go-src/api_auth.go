@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
-
+	"log"
 	"github.com/gin-gonic/gin"
 )
 
@@ -113,6 +113,7 @@ func (handler ServerContext) LoginMiddleware(c *gin.Context) {
 
 func (handler ServerContext) HandleLogin(c *gin.Context) {
 	c.Status(http.StatusOK)
+	log.Printf("User in context: %+v", c.MustGet("user"))
 	return
 }
 

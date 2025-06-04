@@ -17,25 +17,44 @@ type uploadBody struct {
 }
 
 func (handler ServerContext) HandleWorkUpload(c *gin.Context) {
-	var body uploadBody
-	err := c.ShouldBindJSON(&body)
+    var body uploadBody
+    if err := c.ShouldBindJSON(&body); err != nil {
+        log.Printf("JSON parse error: %v", err)
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+        return
+    }
 
-	if err != nil {
-		log.Printf("/api/work/upload error: %v", err)
-		c.Status(http.StatusBadRequest)
-		return
-	}
+    // Логируем полученные данные для отладки
+    log.Printf("Upload request: %+v", body)
+    log.Printf("User: %+v", c.MustGet("user"))
 
-	user := c.MustGet("user").(UserRow)
-	postId, err := UploadPost(user.Id, *body.Title, *body.Tags, *body.Draft,
-		*body.Archived, *body.Body, handler.db)
+    user, exists := c.Get("user")
+    if !exists {
+        log.Println("User not found in context")
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+        return
+    }
 
-	if err != nil {
-		c.Status(http.StatusInternalServerError)
-		return
-	}
+    postId, err := UploadPost(
+        user.(UserRow).Id, 
+        *body.Title,
+        *body.Tags,
+        *body.Draft,
+        *body.Archived,
+        *body.Body,
+        handler.db,
+    )
+    
+    if err != nil {
+        log.Printf("UploadPost error: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Failed to upload post",
+            "details": err.Error(),
+        })
+        return
+    }
 
-	c.JSON(http.StatusOK, gin.H{"id": postId})
+    c.JSON(http.StatusOK, gin.H{"id": postId})
 }
 
 type modifyBody struct {
